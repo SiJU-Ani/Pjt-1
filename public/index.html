@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hardware-to-Blockchain Verification Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+      @keyframes pulse-subtle {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.4;
+        }
+      }
+      .status-pulse {
+        animation: pulse-subtle 2s infinite ease-in-out;
+      }
+    </style>
+  </head>
+  <body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased">
+    <!-- Header -->
+    <header
+      class="border-b border-slate-800 bg-slate-900/60 backdrop-blur px-6 py-4 flex justify-between items-center sticky top-0 z-50"
+    >
+      <div class="flex items-center space-x-3">
+        <div class="h-3 w-3 rounded-full bg-emerald-500 status-pulse"></div>
+        <h1 class="text-lg font-semibold tracking-wide">
+          Secure Telemetry & Custody Ledger
+        </h1>
+      </div>
+      <div class="flex items-center space-x-4 text-xs font-mono">
+        <span
+          class="px-2.5 py-1 rounded bg-slate-800 border border-slate-700 text-slate-300"
+          >Curve: ECDSA P-256</span
+        >
+        <span
+          class="px-2.5 py-1 rounded bg-slate-800 border border-slate-700 text-slate-300"
+          >Network: Local Hardhat (8545)</span
+        >
+      </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto p-6 space-y-6">
+      <!-- Top Metrics Overview -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-lg p-4">
+          <div
+            class="text-xs font-medium text-slate-400 uppercase tracking-wider"
+          >
+            Gateway Status
+          </div>
+          <div id="ws-status" class="mt-2 text-xl font-bold text-amber-400">
+            Connecting...
+          </div>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-lg p-4">
+          <div
+            class="text-xs font-medium text-slate-400 uppercase tracking-wider"
+          >
+            Hardware Signatures
+          </div>
+          <div
+            id="stat-verified"
+            class="mt-2 text-xl font-bold text-emerald-400"
+          >
+            0 Valid
+          </div>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-lg p-4">
+          <div
+            class="text-xs font-medium text-slate-400 uppercase tracking-wider"
+          >
+            Anchored Blocks
+          </div>
+          <div id="stat-blocks" class="mt-2 text-xl font-bold text-sky-400">
+            #0
+          </div>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-lg p-4">
+          <div
+            class="text-xs font-medium text-slate-400 uppercase tracking-wider"
+          >
+            Latest Temperature
+          </div>
+          <div id="stat-temp" class="mt-2 text-xl font-bold text-indigo-400">
+            -- °C
+          </div>
+        </div>
+      </div>
+
+      <!-- Active Pipeline Stage Card -->
+      <div class="bg-slate-900 border border-slate-800 rounded-lg p-6">
+        <h2
+          class="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-4"
+        >
+          Latest Ingestion Pipeline
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
+          <!-- Stage 1 -->
+          <div
+            id="step-ingest"
+            class="border border-slate-800 rounded-md p-4 bg-slate-950/40"
+          >
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-semibold uppercase text-slate-400"
+                >1. USB Ingestion</span
+              >
+              <span
+                id="badge-ingest"
+                class="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400"
+                >Awaiting</span
+              >
+            </div>
+            <p class="text-xs text-slate-400">
+              Ingested from ESP32 via Serial frame parser.
+            </p>
+            <div
+              id="detail-ingest"
+              class="mt-3 text-[11px] font-mono text-slate-300 break-all truncate"
+            >
+              None
+            </div>
+          </div>
+
+          <!-- Stage 2 -->
+          <div
+            id="step-crypto"
+            class="border border-slate-800 rounded-md p-4 bg-slate-950/40"
+          >
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-semibold uppercase text-slate-400"
+                >2. ATECC608A ECDSA</span
+              >
+              <span
+                id="badge-crypto"
+                class="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400"
+                >Awaiting</span
+              >
+            </div>
+            <p class="text-xs text-slate-400">
+              OpenSSL P-256 SHA-256 validation against chip PEM.
+            </p>
+            <div
+              id="detail-crypto"
+              class="mt-3 text-[11px] font-mono text-slate-300 break-all truncate"
+            >
+              None
+            </div>
+          </div>
+
+          <!-- Stage 3 -->
+          <div
+            id="step-chain"
+            class="border border-slate-800 rounded-md p-4 bg-slate-950/40"
+          >
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-semibold uppercase text-slate-400"
+                >3. Ledger Finality</span
+              >
+              <span
+                id="badge-chain"
+                class="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400"
+                >Awaiting</span
+              >
+            </div>
+            <p class="text-xs text-slate-400">
+              State anchored via <code>CustodyLedger.recordEvent()</code>.
+            </p>
+            <div
+              id="detail-chain"
+              class="mt-3 text-[11px] font-mono text-slate-300 break-all truncate"
+            >
+              None
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Event Feed Table -->
+      <div
+        class="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden"
+      >
+        <div class="px-6 py-4 border-b border-slate-800">
+          <h2
+            class="text-sm font-semibold text-slate-300 uppercase tracking-wider"
+          >
+            Cryptographic Audit Trail
+          </h2>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead
+              class="bg-slate-950/60 text-slate-400 font-mono border-b border-slate-800"
+            >
+              <tr>
+                <th class="px-4 py-3">Timestamp</th>
+                <th class="px-4 py-3">Telemetry Payload</th>
+                <th class="px-4 py-3">Hardware Signature (Raw R||S)</th>
+                <th class="px-4 py-3">Crypto Status</th>
+                <th class="px-4 py-3">Tx Hash</th>
+                <th class="px-4 py-3">Block #</th>
+              </tr>
+            </thead>
+            <tbody
+              id="audit-table-body"
+              class="divide-y divide-slate-800 font-mono"
+            >
+              <!-- Event Rows appended here -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+
+    <script>
+      const socket = io();
+      let verifiedCount = 0;
+      const rows = new Map();
+
+      const wsStatus = document.getElementById("ws-status");
+      const statVerified = document.getElementById("stat-verified");
+      const statBlocks = document.getElementById("stat-blocks");
+      const statTemp = document.getElementById("stat-temp");
+      const tableBody = document.getElementById("audit-table-body");
+
+      socket.on("connect", () => {
+        wsStatus.textContent = "ONLINE";
+        wsStatus.className = "mt-2 text-xl font-bold text-emerald-400";
+      });
+
+      socket.on("disconnect", () => {
+        wsStatus.textContent = "DISCONNECTED";
+        wsStatus.className = "mt-2 text-xl font-bold text-rose-500";
+      });
+
+      // 1. Packet Ingestion
+      socket.on("telemetry:received", (data) => {
+        if (data.payload && data.payload.temp !== undefined) {
+          statTemp.textContent = `${data.payload.temp.toFixed(1)} °C`;
+        }
+
+        document.getElementById("badge-ingest").textContent = "Ingested";
+        document.getElementById("badge-ingest").className =
+          "text-[10px] px-2 py-0.5 rounded bg-indigo-900 text-indigo-300";
+        document.getElementById("detail-ingest").textContent = data.rawPayload;
+
+        document.getElementById("badge-crypto").textContent = "Verifying...";
+        document.getElementById("badge-crypto").className =
+          "text-[10px] px-2 py-0.5 rounded bg-amber-900 text-amber-300";
+
+        // Insert Row into table
+        const tr = document.createElement("tr");
+        tr.id = `row-${data.id}`;
+        tr.className = "hover:bg-slate-800/40 transition-colors";
+        tr.innerHTML = `
+        <td class="px-4 py-3 text-slate-400">${new Date().toLocaleTimeString()}</td>
+        <td class="px-4 py-3 font-semibold text-slate-200">${
+          data.rawPayload
+        }</td>
+        <td class="px-4 py-3 text-slate-400 max-w-xs truncate" title="${
+          data.signatureHex
+        }">${data.signatureHex.substring(
+          0,
+          16
+        )}...${data.signatureHex.substring(112)}</td>
+        <td class="px-4 py-3 text-amber-400" id="crypto-cell-${
+          data.id
+        }">Evaluating</td>
+        <td class="px-4 py-3 text-slate-500" id="tx-cell-${data.id}">--</td>
+        <td class="px-4 py-3 text-slate-500" id="block-cell-${data.id}">--</td>
+      `;
+        tableBody.prepend(tr);
+      });
+
+      // 2. Cryptographic Evaluation
+      socket.on("crypto:result", (data) => {
+        const cryptoCell = document.getElementById(`crypto-cell-${data.id}`);
+        if (data.verified) {
+          verifiedCount++;
+          statVerified.textContent = `${verifiedCount} Valid`;
+          document.getElementById("badge-crypto").textContent = "P-256 Valid";
+          document.getElementById("badge-crypto").className =
+            "text-[10px] px-2 py-0.5 rounded bg-emerald-900 text-emerald-300";
+          document.getElementById(
+            "detail-crypto"
+          ).textContent = `DER: ${data.derSignature.substring(0, 32)}...`;
+
+          if (cryptoCell) {
+            cryptoCell.innerHTML = `<span class="px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800">VALID</span>`;
+          }
+        } else {
+          document.getElementById("badge-crypto").textContent = "FAILED";
+          document.getElementById("badge-crypto").className =
+            "text-[10px] px-2 py-0.5 rounded bg-rose-900 text-rose-300";
+          if (cryptoCell) {
+            cryptoCell.innerHTML = `<span class="px-2 py-0.5 rounded bg-rose-950 text-rose-400 border border-rose-800">INVALID</span>`;
+          }
+        }
+      });
+
+      // 3. Blockchain Pipeline updates
+      socket.on("blockchain:pending", (data) => {
+        document.getElementById("badge-chain").textContent = "Mining Tx...";
+        document.getElementById("badge-chain").className =
+          "text-[10px] px-2 py-0.5 rounded bg-amber-900 text-amber-300";
+      });
+
+      socket.on("blockchain:confirmed", (data) => {
+        statBlocks.textContent = `#${data.blockNumber}`;
+
+        document.getElementById("badge-chain").textContent = "Anchored";
+        document.getElementById("badge-chain").className =
+          "text-[10px] px-2 py-0.5 rounded bg-sky-900 text-sky-300";
+        document.getElementById(
+          "detail-chain"
+        ).textContent = `Tx: ${data.txHash}`;
+
+        const txCell = document.getElementById(`tx-cell-${data.id}`);
+        const blockCell = document.getElementById(`block-cell-${data.id}`);
+
+        if (txCell) {
+          txCell.innerHTML = `<span class="text-sky-400 hover:underline cursor-pointer" title="${
+            data.txHash
+          }">${data.txHash.substring(0, 10)}...</span>`;
+        }
+        if (blockCell) {
+          blockCell.innerHTML = `<span class="font-bold text-slate-200">#${data.blockNumber}</span>`;
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,34 @@
+# Secrets
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# Node.js
+node_modules/
+npm-debug.log*
+.npm/
+
+# Build and generated files
+dist/
+build/
+coverage/
+cache/
+artifacts/
+
+# Blockchain credentials and local data
+*.pem
+*.key
+*.p12
+*.pfx
+wallet.json
+secrets.json
+
+# IDE and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
